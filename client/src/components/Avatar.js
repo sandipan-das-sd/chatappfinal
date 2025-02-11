@@ -1,7 +1,26 @@
 import React from 'react'
 import { PiUserCircle } from "react-icons/pi";
 import { useSelector } from 'react-redux';
-import { formatLastSeen } from '../../utils/formatLastSeen';
+// import { formatLastSeen } from '../../utils/formatLastSeen';
+
+import moment from 'moment';
+
+const formatLastSeen = (timestamp) => {
+  if (!timestamp) return '';
+  
+  const now = moment();
+  const lastSeen = moment(timestamp);
+  const diffMinutes = now.diff(lastSeen, 'minutes');
+  const diffHours = now.diff(lastSeen, 'hours');
+  const diffDays = now.diff(lastSeen, 'days');
+  
+  if (diffMinutes < 1) return 'Just now';
+  if (diffMinutes < 60) return `${diffMinutes}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays === 1) return 'Yesterday';
+  if (diffDays < 7) return `${diffDays} days ago`;
+  return lastSeen.format('MMM D'); // Like "Feb 11"
+};
 const Avatar = ({userId,name,imageUrl,width,height}) => {
     const onlineUser = useSelector(state => state?.user?.onlineUser)
     const lastSeen = useSelector(state => state?.user?.lastSeen[userId]);

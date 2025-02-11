@@ -188,11 +188,30 @@ const MessagePage = () => {
                   </div>
                   <div>
                      <h3 className='font-semibold text-lg my-0 text-ellipsis line-clamp-1'>{dataUser?.name}</h3>
-                     <p className='-my-2 text-sm'>
+                     {/* <p className='-my-2 text-sm'>
                       {
                         dataUser.online ? <span className='text-primary'>online</span> : <span className='text-slate-400'>offline</span>
                       }
-                     </p>
+
+                      
+                     </p> */}
+
+<p className='-my-2 text-sm'>
+            {dataUser.online ? (
+                <span className='text-primary'>online</span>
+            ) : (
+                <span className='text-slate-400'>
+                    {dataUser.lastSeen ? (
+                        moment(dataUser.lastSeen).calendar(null, {
+                            sameDay: '[today at] LT',    // 'today at 2:30 PM'
+                            lastDay: '[yesterday at] LT', // 'yesterday at 2:30 PM'
+                            lastWeek: '[last] dddd',      // 'last Monday'
+                            sameElse: 'MMM D'            // 'Feb 11'
+                        })
+                    ) : 'offline'}
+                </span>
+            )}
+        </p>
                   </div>
               </div>
 
