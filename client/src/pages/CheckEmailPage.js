@@ -30,12 +30,7 @@ const CheckEmailPage = () => {
     const URL = `${process.env.REACT_APP_BACKEND_URL}/api/email`
 
     try {
-      const response = await axios({
-        method: 'post',
-        url: URL,
-        data: data,
-        withCredentials: true  // Add this line
-    })
+        const response = await axios.post(URL,data)
 
         toast.success(response.data.message)
 

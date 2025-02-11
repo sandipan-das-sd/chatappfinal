@@ -35,40 +35,45 @@ const CheckPasswordPage = () => {
     })
   }
 
-  const handleSubmit = async(e)=>{
+ 
+  const handleSubmit = async (e) => {
     e.preventDefault()
     e.stopPropagation()
-
+    
     const URL = `${process.env.REACT_APP_BACKEND_URL}/api/password`
-
+    
     try {
         const response = await axios({
-          method :'post',
-          url : URL,
-          data : {
-            userId : location?.state?._id,
-            password : data.password
-          },
-          withCredentials : true
+            method: 'post',
+            url: URL,
+            data: {
+                userId: location?.state?._id,
+                password: data.password
+            },
+            withCredentials: true,
+            timeout: 10000,
+            headers: {
+                'Content-Type': 'application/json',
+                // Adding Accept header for better CORS handling
+                'Accept': 'application/json'
+            }
         })
-
-        toast.success(response.data.message)
-
-        if(response.data.success){
+        
+        if (response.data.success) {
+            toast.success(response.data.message)
             dispatch(setToken(response?.data?.token))
-            localStorage.setItem('token',response?.data?.token)
-
+            localStorage.setItem('token', response?.data?.token)
+            
             setData({
-              password : "",
+                password: "",
             })
             navigate('/')
         }
     } catch (error) {
-        toast.error(error?.response?.data?.message)
+        toast.error(error?.response?.data?.message || "An error occurred")
+        console.error("Error details:", error)
     }
-  }
-
-
+}
   return (
     <div className='mt-5'>
         <div className='bg-white w-full max-w-md  rounded overflow-hidden p-4 mx-auto'>
