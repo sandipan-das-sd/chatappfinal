@@ -1,9 +1,10 @@
 import React from 'react'
 import { PiUserCircle } from "react-icons/pi";
 import { useSelector } from 'react-redux';
-
+import { formatLastSeen } from '../../utils/formatLastSeen';
 const Avatar = ({userId,name,imageUrl,width,height}) => {
     const onlineUser = useSelector(state => state?.user?.onlineUser)
+    const lastSeen = useSelector(state => state?.user?.lastSeen[userId]);
 
     //Amit Prajapati
 
@@ -63,7 +64,11 @@ const Avatar = ({userId,name,imageUrl,width,height}) => {
             <div className='bg-green-600 p-1 absolute bottom-2 -right-1 z-10 rounded-full'></div>
           )
         }
-      
+      {!isOnline && lastSeen && (
+                <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute -bottom-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs py-1 px-2 rounded whitespace-nowrap">
+                    last seen {formatLastSeen(lastSeen)}
+                </div>
+            )}
     </div>
   )
 }

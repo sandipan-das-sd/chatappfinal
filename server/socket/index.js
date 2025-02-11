@@ -28,21 +28,28 @@ const io = new Server(server, {
 
 //online user
 const onlineUser = new Set()
-
+const lastSeenTimes = new Map() 
 io.on('connection',async(socket)=>{
     console.log("connect User ", socket.id)
 
     const token = socket.handshake.auth.token 
-
+    if (!token) {
+        console.log("No token provided")
+        return socket.disconnect()
+    }
     //current user details 
     const user = await getUserDetailsFromToken(token)
-
+    if (!user || user.logout) {
+        console.log("Invalid user authentication")
+        return socket.disconnect()
+    }
+    const userId = user._id.toString()
     //create a room
     socket.join(user?._id.toString())
     onlineUser.add(user?._id?.toString())
 
     io.emit('onlineUser',Array.from(onlineUser))
-
+    io.emit('lastSeen', Object.fromEntries(lastSeenTimes))
     socket.on('message-page',async(userId)=>{
         console.log('userId',userId)
         const userDetails = await UserModel.findById(userId).select("-password")
@@ -52,7 +59,8 @@ io.on('connection',async(socket)=>{
             name : userDetails?.name,
             email : userDetails?.email,
             profile_pic : userDetails?.profile_pic,
-            online : onlineUser.has(userId)
+            online : onlineUser.has(userId),
+            lastSeen: lastSeenTimes.get(userId)
         }
         socket.emit('message-user',payload)
 
@@ -159,6 +167,12 @@ io.on('connection',async(socket)=>{
     //disconnect
     socket.on('disconnect',()=>{
         onlineUser.delete(user?._id?.toString())
+     
+        lastSeenTimes.set(userId, new Date().toISOString())
+        io.emit('lastSeen', {
+            userId: userId,
+            timestamp: lastSeenTimes.get(userId)
+        })
         console.log('disconnect user ',socket.id)
     })
 })

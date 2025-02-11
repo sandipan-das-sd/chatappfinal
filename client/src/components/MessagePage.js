@@ -93,25 +93,49 @@ const MessagePage = () => {
     })
   }
 
-  useEffect(()=>{
-      if(socketConnection){
-        socketConnection.emit('message-page',params.userId)
+  // useEffect(()=>{
+  //     if(socketConnection){
+  //       socketConnection.emit('message-page',params.userId)
 
-        socketConnection.emit('seen',params.userId)
+  //       socketConnection.emit('seen',params.userId)
 
-        socketConnection.on('message-user',(data)=>{
-          setDataUser(data)
-        }) 
+  //       socketConnection.on('message-user',(data)=>{
+  //         setDataUser(data)
+  //       }) 
         
-        socketConnection.on('message',(data)=>{
-          console.log('message data',data)
-          setAllMessage(data)
-        })
+  //       socketConnection.on('message',(data)=>{
+  //         console.log('message data',data)
+  //         setAllMessage(data)
+  //       })
 
 
-      }
-  },[socketConnection,params?.userId,user])
+  //     }
+  // },[socketConnection,params?.userId,user])
+  useEffect(() => {
+    if (socketConnection) {
+        socketConnection.emit('message-page', params.userId);
+        socketConnection.emit('seen', params.userId);
 
+        socketConnection.on('message-user', (data) => {
+            setDataUser(data);
+        });
+
+        socketConnection.on('message', (data) => {
+            setAllMessage(data);
+        });
+
+        // Add listener for last seen updates
+        socketConnection.on('lastSeen', ({ userId, timestamp }) => {
+            if (userId === params.userId) {
+                setDataUser(prev => ({
+                    ...prev,
+                    online: false,
+                    lastSeen: timestamp
+                }));
+            }
+        });
+    }
+}, [socketConnection, params?.userId, user]);
   const handleOnChange = (e)=>{
     const { name, value} = e.target
 
