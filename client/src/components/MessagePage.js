@@ -14,7 +14,7 @@ import backgroundImage from '../assets/wallapaper.jpeg'
 import EmojiPicker from 'emoji-picker-react';
 import { BsEmojiSmile } from "react-icons/bs";
 import { IoMdSend } from "react-icons/io";
-import { BsCheck, BsCheckAll } from "react-icons/bs";
+
 import { useDispatch } from 'react-redux';
 import { setOnlineUser, updateLastSeen } from '../redux/userSlice';
 import moment from 'moment'
