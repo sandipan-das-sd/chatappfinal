@@ -339,17 +339,17 @@ useEffect(() => {
                 </span>
               )}
             </p> */}
-            <p className='-my-2 text-sm'>
+           <p className='-my-2  text-sm'>
   {dataUser.online ? (
     <span className='text-primary'>online</span>
   ) : (
     <span className='text-slate-400'>
       {dataUser.lastSeen ? (
         moment(dataUser.lastSeen).calendar(null, {
-          sameDay: '[Today at] HH:mm',    // Will show "Today at 14:30"
-          lastDay: '[Yesterday at] HH:mm', // Will show "Yesterday at 14:30"
-          lastWeek: '[Last] dddd [at] HH:mm', // Will show "Last Monday at 14:30"
-          sameElse: 'DD/MM/YYYY [at] HH:mm'   // Will show "14/02/2025 at 14:30"
+          sameDay: '[last seen today at] hh:mm A',    // Will show "last seen today at 02:30 PM"
+          lastDay: '[last seen yesterday at] hh:mm A', // Will show "last seen yesterday at 02:30 PM"
+          lastWeek: '[last seen last] dddd [at] hh:mm A', // Will show "last seen last Monday at 02:30 PM"
+          sameElse: '[last seen on] DD/MM/YYYY [at] hh:mm A'   // Will show "last seen on 15/02/2025 at 02:30 PM"
         })
       ) : 'offline'}
     </span>

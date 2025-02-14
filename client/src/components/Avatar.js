@@ -105,13 +105,13 @@ const formatLastSeen = (timestamp) => {
   const lastSeen = moment(timestamp);
   const diffMinutes = now.diff(lastSeen, 'minutes');
   
-  if (diffMinutes < 1) return 'Just now';
+  if (diffMinutes < 1) return 'just now';
   
   return lastSeen.calendar(null, {
-    sameDay: '[Today at] HH:mm',       // Shows: Today at 14:30
-    lastDay: '[Yesterday at] HH:mm',    // Shows: Yesterday at 14:30
-    lastWeek: '[Last] dddd [at] HH:mm', // Shows: Last Monday at 14:30
-    sameElse: 'DD/MM/YYYY [at] HH:mm'   // Shows: 15/02/2025 at 14:30
+    sameDay: '[last seen today at] hh:mm A',       // Shows: last seen today at 02:30 PM
+    lastDay: '[last seen yesterday at] hh:mm A',    // Shows: last seen yesterday at 02:30 PM
+    lastWeek: '[last seen last] dddd [at] hh:mm A', // Shows: last seen last Monday at 02:30 PM
+    sameElse: '[last seen on] DD/MM/YYYY [at] hh:mm A'   // Shows: last seen on 15/02/2025 at 02:30 PM
   });
 };
 
