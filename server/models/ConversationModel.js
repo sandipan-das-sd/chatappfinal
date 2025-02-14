@@ -1,62 +1,73 @@
 const mongoose = require('mongoose')
 
 const messageSchema = new mongoose.Schema({
-    text : {
-        type : String,
-        default : ""
+    text: {
+        type: String,
+        default: ""
     },
-    imageUrl : {
-        type : String,
-        default : ""
+    imageUrl: {
+        type: String,
+        default: ""
     },
-    videoUrl : {
-        type : String,
-        default : ""
+    videoUrl: {
+        type: String,
+        default: ""
     },
-    audio:{
-        type:String,
-        default:""
+    audio: {
+        type: String,
+        default: ""
     },
-    delivered:{
-        type:Boolean,
-        default:false
+    status: {
+        type: String,
+        enum: ['sent', 'delivered', 'seen'],
+        default: 'sent'
     },
-    seen : {
-        type : Boolean,
-        default : false
+    seen: {
+        type: Boolean,
+        default: false
     },
-    msgByUserId : {
-        type : mongoose.Schema.ObjectId,
-        required : true,
-        ref : 'User'
+    msgByUserId: {
+        type: mongoose.Schema.ObjectId,
+        required: true,
+        ref: 'User'
     }
-},{
-    timestamps : true
+}, {
+    timestamps: true
 })
 
 const conversationSchema = new mongoose.Schema({
-    sender : {
-        type : mongoose.Schema.ObjectId,
-        required : true,
-        ref : 'User'
+    sender: {
+        type: mongoose.Schema.ObjectId,
+        required: true,
+        ref: 'User'
     },
-    receiver : {
-        type : mongoose.Schema.ObjectId,
-        required : true,
-        ref : 'User'
+    receiver: {
+        type: mongoose.Schema.ObjectId,
+        required: true,
+        ref: 'User'
     },
-    messages : [
-        {
-            type : mongoose.Schema.ObjectId,
-            ref : 'Message'
-        }
-    ]
-},{
-    timestamps : true
+    messages: [{
+        type: mongoose.Schema.ObjectId,
+        ref: 'Message'
+    }],
+    unseenMsg: {
+        type: Number,
+        default: 0
+    },
+    lastMessage: {
+        type: mongoose.Schema.ObjectId,
+        ref: 'Message'
+    }
+}, {
+    timestamps: true
 })
 
-const MessageModel = mongoose.model('Message',messageSchema)
-const ConversationModel = mongoose.model('Conversation',conversationSchema)
+// Add index for better query performance
+conversationSchema.index({ sender: 1, receiver: 1 })
+messageSchema.index({ msgByUserId: 1 })
+
+const MessageModel = mongoose.model('Message', messageSchema)
+const ConversationModel = mongoose.model('Conversation', conversationSchema)
 
 module.exports = {
     MessageModel,

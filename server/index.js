@@ -64,31 +64,35 @@ const { app, server } = require('./socket/index');
 
 // CORS configuration
 const corsOptions = {
-    origin: process.env.NODE_ENV === 'production' 
-        ? [process.env.FRONTEND_URL]
-        : ['http://localhost:3000'],
+    origin: ['http://localhost:3000', 'https://chatappfinal-delta.vercel.app'],
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
     credentials: true,
     maxAge: 86400
 };
 
-// Middleware
+// Apply CORS before any routes
 app.use(cors(corsOptions));
+
+// Enable pre-flight requests for all routes
 app.options('*', cors(corsOptions));
+
+// Parse JSON bodies
 app.use(express.json());
 app.use(cookieParser());
 
-// Security headers
+// Global middleware for headers
 app.use((req, res, next) => {
-    res.header('Access-Control-Allow-Credentials', 'true');
-    res.header('Access-Control-Allow-Origin', req.headers.origin);
-    res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,UPDATE,OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'X-Requested-With, X-HTTP-Method-Override, Content-Type, Accept');
-    // Add security headers
-    res.header('X-Content-Type-Options', 'nosniff');
-    res.header('X-Frame-Options', 'DENY');
-    res.header('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    const origin = req.headers.origin;
+    if (corsOptions.origin.includes(origin)) {
+        res.setHeader('Access-Control-Allow-Origin', origin);
+    }
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
     next();
 });
 
@@ -103,11 +107,13 @@ app.use('/api', router);
 
 const PORT = process.env.PORT || 8081;
 
+// Server startup
 const startServer = async () => {
     try {
         await connectDB();
         server.listen(PORT, () => {
             console.log(`🚀 Server running on port ${PORT}`);
+            console.log('✅ CORS enabled for:', corsOptions.origin);
         });
     } catch (error) {
         console.error('Failed to start server:', error);

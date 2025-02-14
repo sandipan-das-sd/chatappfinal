@@ -14,8 +14,36 @@ import backgroundImage from '../assets/wallapaper.jpeg'
 import EmojiPicker from 'emoji-picker-react';
 import { BsEmojiSmile } from "react-icons/bs";
 import { IoMdSend } from "react-icons/io";
+import { BsCheck, BsCheckAll } from "react-icons/bs";
 import moment from 'moment'
+const MessageStatus = ({ status }) => {
+  console.log('Message status:', status); // Add this for debugging
 
+  switch(status) {
+    case 'sent':
+      return <BsCheck size={16} className="text-gray-500" />;
+    case 'delivered':
+      return <BsCheckAll size={16} className="text-gray-500" />;
+    case 'seen':
+      return <BsCheckAll size={16} className="text-blue-500" />;
+    default:
+      return <BsCheck size={16} className="text-gray-500" />; // Default to sent status
+  }
+};
+const TimestampDivider = ({ date }) => (
+  <div className="flex items-center justify-center my-4">
+    <div className="bg-gray-200 rounded-full px-3 py-1">
+      <span className="text-xs text-gray-600">
+        {moment(date).calendar(null, {
+          sameDay: '[Today]',
+          lastDay: '[Yesterday]',
+          lastWeek: 'dddd',
+          sameElse: 'MMMM D, YYYY'
+        })}
+      </span>
+    </div>
+  </div>
+);
 const MessagePage = () => {
   const params = useParams()
   const socketConnection = useSelector(state => state?.user?.socketConnection)
@@ -27,6 +55,7 @@ const MessagePage = () => {
     online: false,
     _id: ""
   })
+  const [isTyping, setIsTyping] = useState(false);
   const [openImageVideoUpload, setOpenImageVideoUpload] = useState(false)
   const [message, setMessage] = useState({
     text: "",
@@ -35,7 +64,7 @@ const MessagePage = () => {
   })
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [loading, setLoading] = useState(false)
-  const [allMessage, setAllMessage] = useState([])
+  const [allMessage, setAllMessage] = useState([]);
   const currentMessage = useRef(null)
 
   const onEmojiClick = (emojiObject) => {
@@ -116,49 +145,120 @@ const MessagePage = () => {
     })
   }
 
-  // useEffect(()=>{
-  //     if(socketConnection){
-  //       socketConnection.emit('message-page',params.userId)
 
-  //       socketConnection.emit('seen',params.userId)
+  // useEffect(() => {
+  //   if (socketConnection) {
+  //     socketConnection.emit('message-page', params.userId);
+  //     socketConnection.emit('seen', params.userId);
 
-  //       socketConnection.on('message-user',(data)=>{
-  //         setDataUser(data)
-  //       }) 
+  //     socketConnection.on('message-user', (data) => {
+  //       setDataUser(data);
+  //     });
 
-  //       socketConnection.on('message',(data)=>{
-  //         console.log('message data',data)
-  //         setAllMessage(data)
-  //       })
+  //     socketConnection.on('message', (data) => {
+  //       setAllMessage(data);
+  //     });
 
+  //     // Add listener for last seen updates
+  //     socketConnection.on('lastSeen', ({ userId, timestamp }) => {
+  //       if (userId === params.userId) {
+  //         setDataUser(prev => ({
+  //           ...prev,
+  //           online: false,
+  //           lastSeen: timestamp
+  //         }));
+  //       }
+  //     });
+  //   }
+  // }, [socketConnection, params?.userId, user]);
 
-  //     }
-  // },[socketConnection,params?.userId,user])
   useEffect(() => {
     if (socketConnection) {
+      // Clear messages when mounting or switching conversations
+      setAllMessage([]); 
+  
+      // Initial setup
       socketConnection.emit('message-page', params.userId);
-      socketConnection.emit('seen', params.userId);
-
+      socketConnection.emit('message-seen', params.userId);
+  
+      // Handle user data
       socketConnection.on('message-user', (data) => {
         setDataUser(data);
       });
-
+  
+      // Handle incoming messages
       socketConnection.on('message', (data) => {
-        setAllMessage(data);
-      });
-
-      // Add listener for last seen updates
-      socketConnection.on('lastSeen', ({ userId, timestamp }) => {
-        if (userId === params.userId) {
-          setDataUser(prev => ({
-            ...prev,
-            online: false,
-            lastSeen: timestamp
-          }));
+        console.log('Received message data:', data);
+        if (Array.isArray(data)) {
+          setAllMessage(data);
+        } else if (data) {
+          setAllMessage(prev => [...prev, data]);
         }
       });
+  
+      // Handle message status updates
+      socketConnection.on('message-status-update', ({ messageId, status }) => {
+        setAllMessage(prevMessages => 
+          prevMessages.map(msg => 
+            msg._id === messageId ? { ...msg, status } : msg
+          )
+        );
+      });
+  
+      // Handle seen messages
+      socketConnection.on('messages-seen', () => {
+        setAllMessage(prevMessages => 
+          prevMessages.map(msg => 
+            msg.msgByUserId === user._id ? { ...msg, status: 'seen' } : msg
+          )
+        );
+      });
+  
+      // Cleanup function
+      return () => {
+        socketConnection.off('message');
+        socketConnection.off('message-user');
+        socketConnection.off('message-status-update');
+        socketConnection.off('messages-seen');
+      };
     }
-  }, [socketConnection, params?.userId, user]);
+  }, [socketConnection, params?.userId, user?._id]);
+
+  useEffect(() => {
+    if (socketConnection) {
+      socketConnection.on('typing', ({ userId }) => {
+        if (userId === params.userId) {
+          setIsTyping(true);
+          // Clear typing indicator after 3 seconds
+          setTimeout(() => setIsTyping(false), 3000);
+        }
+      });
+  
+      // Debounced typing emission
+      let typingTimeout;
+      const handleTyping = () => {
+        socketConnection.emit('typing', { receiverId: params.userId });
+      };
+  
+      const debouncedTyping = () => {
+        clearTimeout(typingTimeout);
+        typingTimeout = setTimeout(handleTyping, 300);
+      };
+  
+      // Add event listener to input
+      const messageInput = document.getElementById('messageInput');
+      if (messageInput) {
+        messageInput.addEventListener('input', debouncedTyping);
+      }
+  
+      return () => {
+        socketConnection.off('typing');
+        if (messageInput) {
+          messageInput.removeEventListener('input', debouncedTyping);
+        }
+      };
+    }
+  }, [socketConnection, params.userId]);
   const handleOnChange = (e) => {
     const { name, value } = e.target
 
@@ -170,32 +270,66 @@ const MessagePage = () => {
     })
   }
 
-  const handleSendMessage = (e) => {
-    e.preventDefault()
+  // const handleSendMessage = (e) => {
+  //   e.preventDefault()
 
+  //   if (message.text || message.imageUrl || message.videoUrl) {
+  //     if (socketConnection) {
+  //       socketConnection.emit('new message', {
+  //         sender: user?._id,
+  //         receiver: params.userId,
+  //         text: message.text,
+  //         imageUrl: message.imageUrl,
+  //         videoUrl: message.videoUrl,
+  //         msgByUserId: user?._id
+  //       })
+  //       setMessage({
+  //         text: "",
+  //         imageUrl: "",
+  //         videoUrl: ""
+  //       })
+  //     }
+  //   }
+  // }
+  useEffect(() => {
+    console.log('Current messages:', allMessage);
+  }, [allMessage]); // Log whenever messages change
+
+  const handleSendMessage = (e) => {
+    e.preventDefault();
+  
     if (message.text || message.imageUrl || message.videoUrl) {
       if (socketConnection) {
-        socketConnection.emit('new message', {
+        // Create message object
+        const messageData = {
           sender: user?._id,
           receiver: params.userId,
           text: message.text,
           imageUrl: message.imageUrl,
           videoUrl: message.videoUrl,
           msgByUserId: user?._id
-        })
+        };
+  
+        // Send message through socket
+        socketConnection.emit('new message', messageData);
+  
+        // Clear input fields
         setMessage({
           text: "",
           imageUrl: "",
           videoUrl: ""
-        })
+        });
       }
     }
-  }
-
-
+  };
   return (
     <div style={{ backgroundImage: `url(${backgroundImage})` }} className='bg-no-repeat bg-cover'>
       <header className='sticky top-0 h-16 bg-white flex justify-between items-center px-4'>
+      {isTyping && (
+  <div className="px-4 py-2 text-sm text-gray-500 italic">
+    {dataUser.name} is typing...
+  </div>
+)}
         <div className='flex items-center gap-4'>
           <Link to={"/"} className='lg:hidden'>
             <FaAngleLeft size={25} />
@@ -245,35 +379,92 @@ const MessagePage = () => {
 
         {/**all message show here */}
         <div className='flex flex-col gap-2 py-2 mx-2' ref={currentMessage}>
-          {
-            allMessage.map((msg, index) => {
-              return (
-                <div className={` p-1 py-1 rounded w-fit max-w-[280px] md:max-w-sm lg:max-w-md ${user._id === msg?.msgByUserId ? "ml-auto bg-teal-100" : "bg-white"}`}>
-                  <div className='w-full relative'>
-                    {
-                      msg?.imageUrl && (
-                        <img
-                          src={msg?.imageUrl}
-                          className='w-full h-full object-scale-down'
-                        />
-                      )
-                    }
-                    {
-                      msg?.videoUrl && (
-                        <video
-                          src={msg.videoUrl}
-                          className='w-full h-full object-scale-down'
-                          controls
-                        />
-                      )
-                    }
-                  </div>
-                  <p className='px-2'>{msg.text}</p>
-                  <p className='text-xs ml-auto w-fit'>{moment(msg.createdAt).format('hh:mm')}</p>
-                </div>
-              )
-            })
-          }
+         
+
+{/* {allMessage.map((msg, index) => (
+  <div key={msg._id} className={`p-1 py-1 rounded w-fit max-w-[280px] md:max-w-sm lg:max-w-md ${
+    user._id === msg?.msgByUserId ? "ml-auto bg-teal-100" : "bg-white"
+  }`}>
+    <div className='w-full relative'>
+      {msg?.imageUrl && (
+        <img
+          src={msg?.imageUrl}
+          className='w-full h-full object-scale-down'
+          alt="message"
+        />
+      )}
+      {msg?.videoUrl && (
+        <video
+          src={msg.videoUrl}
+          className='w-full h-full object-scale-down'
+          controls
+        />
+      )}
+    </div>
+    <p className='px-2'>{msg.text}</p>
+    <div className='flex items-center justify-end gap-1 px-2'>
+      <span className='text-xs'>
+        {moment(msg.createdAt).format('hh:mm')}
+      </span>
+      {user._id === msg?.msgByUserId && (
+        <span className="inline-block ml-1">
+          <MessageStatus status={msg.status || 'sent'} />
+        </span>
+      )}
+    </div>
+  </div>
+))} */}
+
+{Array.isArray(allMessage) && allMessage.length > 0 ? (
+  allMessage.map((msg, index) => {
+    console.log('Rendering message:', msg); // Debug each message
+    const showTimestamp = index === 0 || 
+      !moment(msg?.createdAt).isSame(allMessage[index - 1]?.createdAt, 'day');
+
+    return (
+      <React.Fragment key={msg?._id || index}>
+        {showTimestamp && msg?.createdAt && <TimestampDivider date={msg.createdAt} />}
+        <div className={`p-3 rounded-lg w-fit max-w-[280px] md:max-w-sm lg:max-w-md ${
+          user?._id === msg?.msgByUserId 
+            ? "ml-auto bg-primary/10" 
+            : "bg-white"
+        }`}>
+          <div className='w-full relative'>
+            {msg?.imageUrl && (
+              <img
+                src={msg?.imageUrl}
+                className='w-full h-full rounded-lg object-cover mb-1'
+                alt="message"
+              />
+            )}
+            {msg?.videoUrl && (
+              <video
+                src={msg.videoUrl}
+                className='w-full h-full rounded-lg object-cover mb-1'
+                controls
+              />
+            )}
+          </div>
+          {msg?.text && <p className='px-1'>{msg.text}</p>}
+          <div className='flex items-center justify-end gap-1 px-1 mt-1'>
+            <span className='text-xs text-gray-500'>
+              {msg?.createdAt && moment(msg.createdAt).format('HH:mm')}
+            </span>
+            {user?._id === msg?.msgByUserId && (
+              <span className="inline-block ml-1">
+                <MessageStatus status={msg?.status || 'sent'} />
+              </span>
+            )}
+          </div>
+        </div>
+      </React.Fragment>
+    );
+  })
+) : (
+  <div className="flex items-center justify-center h-full">
+    <p className="text-gray-500">No messages yet</p>
+  </div>
+)}
         </div>
 
 
@@ -324,87 +515,73 @@ const MessagePage = () => {
         }
       </section>
 
-      {/**send message */}
-      <section className='h-16 bg-white flex items-center px-4'>
-        <div className='relative '>
-          <button onClick={handleUploadImageVideoOpen} className='flex justify-center items-center w-11 h-11 rounded-full hover:bg-primary hover:text-white'>
-            <FaPlus size={20} />
-          </button>
+     {/**send message */}
+<section className='h-16 bg-white flex items-center px-4 shadow-lg'>
+  <div className='relative'>
+    <button 
+      onClick={handleUploadImageVideoOpen} 
+      className='flex justify-center items-center w-11 h-11 rounded-full hover:bg-gray-100 transition-colors'
+    >
+      <FaPlus size={20} className="text-gray-600" />
+    </button>
 
-          {/**video and image */}
-          {
-            openImageVideoUpload && (
-              <div className='bg-white shadow rounded absolute bottom-14 w-36 p-2'>
-                <form>
-                  <label htmlFor='uploadImage' className='flex items-center p-2 px-3 gap-3 hover:bg-slate-200 cursor-pointer'>
-                    <div className='text-primary'>
-                      <FaImage size={18} />
-                    </div>
-                    <p>Image</p>
-                  </label>
-                  <label htmlFor='uploadVideo' className='flex items-center p-2 px-3 gap-3 hover:bg-slate-200 cursor-pointer'>
-                    <div className='text-purple-500'>
-                      <FaVideo size={18} />
-                    </div>
-                    <p>Video</p>
-                  </label>
-
-                  <input
-                    type='file'
-                    id='uploadImage'
-                    onChange={handleUploadImage}
-                    className='hidden'
-                  />
-
-                  <input
-                    type='file'
-                    id='uploadVideo'
-                    onChange={handleUploadVideo}
-                    className='hidden'
-                  />
-                </form>
-              </div>
-            )
-          }
-
-        </div>
-
-        {/**input box */}
-        <form className='h-full w-full flex gap-2' onSubmit={handleSendMessage}>
-          <input
-            type='text'
-            placeholder='Type here message...'
-            className='py-1 px-4 outline-none w-full h-full'
-            value={message.text}
-            onChange={handleOnChange}
-          />
-          <button className='text-primary hover:text-secondary'>
-            <IoMdSend size={28} />
-          </button>
+    {openImageVideoUpload && (
+      <div className='bg-white shadow-lg rounded-lg absolute bottom-14 w-40 p-2 transform transition-all'>
+        <form>
+          <label htmlFor='uploadImage' className='flex items-center p-2 px-3 gap-3 hover:bg-gray-50 rounded-md cursor-pointer transition-colors'>
+            <div className='text-primary'>
+              <FaImage size={18} />
+            </div>
+            <p className="text-sm font-medium">Image</p>
+          </label>
+          <label htmlFor='uploadVideo' className='flex items-center p-2 px-3 gap-3 hover:bg-gray-50 rounded-md cursor-pointer transition-colors'>
+            <div className='text-purple-500'>
+              <FaVideo size={18} />
+            </div>
+            <p className="text-sm font-medium">Video</p>
+          </label>
+          <input type='file' id='uploadImage' onChange={handleUploadImage} className='hidden' />
+          <input type='file' id='uploadVideo' onChange={handleUploadVideo} className='hidden' />
         </form>
-        {/* Emoji Button */}
-        <button
-          type="button"
-          onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-          className='absolute right-16 text-gray-500 hover:text-primary'
-        >
-          <BsEmojiSmile size={23} />
-        </button>
+      </div>
+    )}
+  </div>
 
-        {/* Emoji Picker */}
-        {showEmojiPicker && (
-          <div
-            ref={emojiPickerRef}
-            className='absolute bottom-16 right-0'
-          >
-            <EmojiPicker
-              onEmojiClick={onEmojiClick}
-              width={300}
-              height={400}
-            />
-          </div>
-        )}
-      </section>
+  <form className='relative flex-1 mx-2' onSubmit={handleSendMessage}>
+    <input
+      id="messageInput"
+      type='text'
+      placeholder='Type a message...'
+      className='w-full py-2 px-4 rounded-full bg-gray-100 outline-none focus:ring-2 focus:ring-primary focus:bg-white transition-all'
+      value={message.text}
+      onChange={handleOnChange}
+    />
+    
+    <button
+      type="button"
+      onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+      className='absolute right-14 top-1/2 -translate-y-1/2 text-gray-500 hover:text-primary transition-colors'
+    >
+      <BsEmojiSmile size={20} />
+    </button>
+
+    <button 
+      type="submit" 
+      className='absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-full bg-primary text-white hover:bg-primary/90 transition-colors'
+      disabled={!message.text && !message.imageUrl && !message.videoUrl}
+    >
+      <IoMdSend size={18} />
+    </button>
+
+    {showEmojiPicker && (
+      <div ref={emojiPickerRef} className='absolute bottom-12 right-0 z-50'>
+        <div className="shadow-lg rounded-lg overflow-hidden">
+          <EmojiPicker onEmojiClick={onEmojiClick} width={300} height={400} />
+        </div>
+      </div>
+    )}
+  </form>
+</section>
 
 
 
