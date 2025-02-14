@@ -48,9 +48,9 @@ io.on('connection',async(socket)=>{
     socket.join(user?._id.toString())
     onlineUser.add(user?._id?.toString())
 
-    io.emit('onlineUser',Array.from(onlineUser))
-    io.emit('lastSeen', Object.fromEntries(lastSeenTimes))
-    socket.on('message-page',async(userId)=>{
+    io.emit('onlineUser',Array.from(onlineUser)) //convert set to array
+    io.emit('lastSeen', Object.fromEntries(lastSeenTimes)) //convert map to object
+    socket.on('message-page',async(userId)=>{  
         console.log('userId',userId)
         const userDetails = await UserModel.findById(userId).select("-password")
         

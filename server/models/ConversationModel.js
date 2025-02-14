@@ -13,6 +13,14 @@ const messageSchema = new mongoose.Schema({
         type : String,
         default : ""
     },
+    audio:{
+        type:String,
+        default:""
+    },
+    delivered:{
+        type:Boolean,
+        default:false
+    },
     seen : {
         type : Boolean,
         default : false
