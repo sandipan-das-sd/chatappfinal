@@ -14,7 +14,7 @@ import backgroundImage from '../assets/wallapaper.jpeg'
 import EmojiPicker from 'emoji-picker-react';
 import { BsEmojiSmile } from "react-icons/bs";
 import { IoMdSend } from "react-icons/io";
-
+import TypingIndicator from './Typingindicator';
 import { useDispatch } from 'react-redux';
 import { setOnlineUser, updateLastSeen } from '../redux/userSlice';
 import moment from 'moment'
@@ -155,33 +155,7 @@ const MessagePage = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  // useEffect(() => {
-  //   if (socketConnection) {
-  //     socketConnection.emit('message-page', params.userId);
-  //     socketConnection.emit('seen', params.userId);
 
-  //     socketConnection.on('message-user', (data) => {
-  //       setDataUser(data);
-  //     });
-
-  //     socketConnection.on('message', (data) => {
-  //       setAllMessage(data);
-  //     });
-
-  //     // Add listener for last seen updates
-  //     socketConnection.on('lastSeen', ({ userId, timestamp }) => {
-  //       if (userId === params.userId) {
-  //         setDataUser(prev => ({
-  //           ...prev,
-  //           online: false,
-  //           lastSeen: timestamp
-  //         }));
-  //       }
-  //     });
-  //   }
-  // }, [socketConnection, params?.userId, user]);
-
-  // Replace your current useEffect for socket connection with this:
 useEffect(() => {
   if (socketConnection) {
     // Clear messages when mounting or switching conversations
@@ -349,7 +323,7 @@ useEffect(() => {
             <h3 className='font-semibold text-lg my-0 text-ellipsis line-clamp-1'>{dataUser?.name}</h3>
 
 
-            <p className='-my-2 text-sm'>
+            {/* <p className='-my-2 text-sm'>
               {dataUser.online ? (
                 <span className='text-primary'>online</span>
               ) : (
@@ -364,7 +338,23 @@ useEffect(() => {
                   ) : 'offline'}
                 </span>
               )}
-            </p>
+            </p> */}
+            <p className='-my-2 text-sm'>
+  {dataUser.online ? (
+    <span className='text-primary'>online</span>
+  ) : (
+    <span className='text-slate-400'>
+      {dataUser.lastSeen ? (
+        moment(dataUser.lastSeen).calendar(null, {
+          sameDay: '[Today at] HH:mm',    // Will show "Today at 14:30"
+          lastDay: '[Yesterday at] HH:mm', // Will show "Yesterday at 14:30"
+          lastWeek: '[Last] dddd [at] HH:mm', // Will show "Last Monday at 14:30"
+          sameElse: 'DD/MM/YYYY [at] HH:mm'   // Will show "14/02/2025 at 14:30"
+        })
+      ) : 'offline'}
+    </span>
+  )}
+</p>
           </div>
         </div>
 
@@ -426,7 +416,7 @@ useEffect(() => {
     return (
       <React.Fragment key={msg?._id || index}>
         {showTimestamp && msg?.createdAt && <TimestampDivider date={msg.createdAt} />}
-        <div className={`p-3 rounded-lg w-fit max-w-[280px] md:max-w-sm lg:max-w-md ${
+        <div className={`p-3 rounded-lg w-fit max-w-[280px] md:max-w-sm lg:max-w-md  break-words ${
           user?._id === msg?.msgByUserId 
             ? "ml-auto bg-primary/10" 
             : "bg-white"
@@ -447,7 +437,7 @@ useEffect(() => {
               />
             )}
           </div>
-          {msg?.text && <p className='px-1'>{msg.text}</p>}
+          {msg?.text && <p className='px-1 whitespace-pre-wrap break-words overflow-hidden'>{msg.text}</p>}
           <div className='flex items-center justify-end gap-1 px-1 mt-1'>
             <span className='text-xs text-gray-500'>
               {msg?.createdAt && moment(msg.createdAt).format('HH:mm')}
@@ -518,10 +508,17 @@ useEffect(() => {
       </section>
 
      {/**send message */}
-<section className='h-16 bg-white flex items-center px-4 shadow-lg'>
+<section className='h-16 bg-white flex items-center px-4 shadow-lg  relative'>
 {isTyping && (
-    <div className="absolute -top-8 left-4 px-4 py-2 text-sm text-gray-500 italic bg-white/50 rounded">
-      {dataUser.name} is typing...
+    <div className="absolute -top-16 left-4 z-50">
+      <div className="flex items-center space-x-2 px-4 py-2 bg-white/95 rounded-xl shadow-lg">
+        <span className="text-sm text-gray-600">{dataUser.name} is typing</span>
+        <div className="flex space-x-1">
+          <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+          <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+          <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+        </div>
+      </div>
     </div>
   )}
   <div className='relative'>

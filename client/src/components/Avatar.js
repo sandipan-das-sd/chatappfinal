@@ -99,21 +99,20 @@ import { useSelector } from 'react-redux';
 import moment from 'moment';
 
 const formatLastSeen = (timestamp) => {
-  if (!timestamp) return '';
+  if (!timestamp) return 'offline';
   
   const now = moment();
   const lastSeen = moment(timestamp);
   const diffMinutes = now.diff(lastSeen, 'minutes');
-  const diffHours = now.diff(lastSeen, 'hours');
-  const diffDays = now.diff(lastSeen, 'days');
   
-  if (diffMinutes < 1) return 'just now';
-  if (diffMinutes < 60) return `${diffMinutes}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  if (diffDays === 1) return 'yesterday';
-  if (diffDays < 7) return lastSeen.format('[last] dddd');
-  if (now.year() === lastSeen.year()) return lastSeen.format('MMM D [at] HH:mm');
-  return lastSeen.format('MMM D, YYYY');
+  if (diffMinutes < 1) return 'Just now';
+  
+  return lastSeen.calendar(null, {
+    sameDay: '[Today at] HH:mm',       // Shows: Today at 14:30
+    lastDay: '[Yesterday at] HH:mm',    // Shows: Yesterday at 14:30
+    lastWeek: '[Last] dddd [at] HH:mm', // Shows: Last Monday at 14:30
+    sameElse: 'DD/MM/YYYY [at] HH:mm'   // Shows: 15/02/2025 at 14:30
+  });
 };
 
 const Avatar = ({ userId, name, imageUrl, width, height }) => {
