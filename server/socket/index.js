@@ -66,7 +66,7 @@ io.on('connection', async (socket) => {
             lastSeen: lastSeenTimes.get(recipientId)
         }
         socket.emit('message-user', payload)
-
+       
         // Get conversation and mark messages as delivered if sender is online
         const conversation = await ConversationModel.findOne({
             "$or": [
@@ -74,7 +74,7 @@ io.on('connection', async (socket) => {
                 { sender: recipientId, receiver: user._id }
             ]
         }).populate('messages')
-
+         //filter the sent message and mark them as delivred when users online 
         if (conversation) {
             // Mark messages as delivered when chat is opened
             const undeliveredMessages = conversation.messages.filter(
