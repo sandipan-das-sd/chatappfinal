@@ -15,21 +15,26 @@ import EmojiPicker from 'emoji-picker-react';
 import { BsEmojiSmile } from "react-icons/bs";
 import { IoMdSend } from "react-icons/io";
 import { BsCheck, BsCheckAll } from "react-icons/bs";
+import { useDispatch } from 'react-redux';
+import { setOnlineUser, updateLastSeen } from '../redux/userSlice';
 import moment from 'moment'
 const MessageStatus = ({ status }) => {
-  console.log('Message status:', status); // Add this for debugging
-
-  switch(status) {
-    case 'sent':
-      return <BsCheck size={16} className="text-gray-500" />;
-    case 'delivered':
-      return <BsCheckAll size={16} className="text-gray-500" />;
-    case 'seen':
-      return <BsCheckAll size={16} className="text-blue-500" />;
-    default:
-      return <BsCheck size={16} className="text-gray-500" />; // Default to sent status
-  }
+  // Add margin to align with message
+  const statusColors = {
+    sent: "text-gray-400",
+    delivered: "text-gray-500",
+    seen: "text-blue-500"
+  };
+  
+  return (
+    <div className={`flex items-center gap-1 ${statusColors[status]}`}>
+      {status === 'sent' && <span>✓</span>}
+      {status === 'delivered' && <span>✓✓</span>}
+      {status === 'seen' && <span>✓✓</span>}
+    </div>
+  );
 };
+
 const TimestampDivider = ({ date }) => (
   <div className="flex items-center justify-center my-4">
     <div className="bg-gray-200 rounded-full px-3 py-1">
@@ -45,6 +50,7 @@ const TimestampDivider = ({ date }) => (
   </div>
 );
 const MessagePage = () => {
+  const dispatch = useDispatch();
   const params = useParams()
   const socketConnection = useSelector(state => state?.user?.socketConnection)
   const user = useSelector(state => state?.user)
@@ -144,7 +150,10 @@ const MessagePage = () => {
       }
     })
   }
-
+  const messagesEndRef = useRef(null);
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
 
   // useEffect(() => {
   //   if (socketConnection) {
@@ -172,93 +181,116 @@ const MessagePage = () => {
   //   }
   // }, [socketConnection, params?.userId, user]);
 
-  useEffect(() => {
-    if (socketConnection) {
-      // Clear messages when mounting or switching conversations
-      setAllMessage([]); 
-  
-      // Initial setup
-      socketConnection.emit('message-page', params.userId);
-      socketConnection.emit('message-seen', params.userId);
-  
-      // Handle user data
-      socketConnection.on('message-user', (data) => {
-        setDataUser(data);
-      });
-  
-      // Handle incoming messages
-      socketConnection.on('message', (data) => {
-        console.log('Received message data:', data);
-        if (Array.isArray(data)) {
-          setAllMessage(data);
-        } else if (data) {
-          setAllMessage(prev => [...prev, data]);
-        }
-      });
-  
-      // Handle message status updates
-      socketConnection.on('message-status-update', ({ messageId, status }) => {
-        setAllMessage(prevMessages => 
-          prevMessages.map(msg => 
-            msg._id === messageId ? { ...msg, status } : msg
-          )
-        );
-      });
-  
-      // Handle seen messages
-      socketConnection.on('messages-seen', () => {
-        setAllMessage(prevMessages => 
-          prevMessages.map(msg => 
-            msg.msgByUserId === user._id ? { ...msg, status: 'seen' } : msg
-          )
-        );
-      });
-  
-      // Cleanup function
-      return () => {
-        socketConnection.off('message');
-        socketConnection.off('message-user');
-        socketConnection.off('message-status-update');
-        socketConnection.off('messages-seen');
-      };
-    }
-  }, [socketConnection, params?.userId, user?._id]);
+  // Replace your current useEffect for socket connection with this:
+useEffect(() => {
+  if (socketConnection) {
+    // Clear messages when mounting or switching conversations
+    setAllMessage([]); 
 
+    // Initial setup
+    socketConnection.emit('message-page', params.userId);
+    socketConnection.emit('seen', params.userId);
+
+    // Handle user data
+    socketConnection.on('message-user', (data) => {
+      setDataUser(data);
+    });
+
+    // Handle messages
+    socketConnection.on('message', (newMessage) => {
+      if (Array.isArray(newMessage)) {
+        // Handle initial message load
+        setAllMessage(newMessage);
+        socketConnection.emit('seen', params.userId);
+      } else if (newMessage) {
+        // Handle single new message
+        setAllMessage(prev => {
+          const messageExists = prev.some(msg => msg._id === newMessage._id);
+          if (messageExists) return prev;
+          const updatedMessages = [...prev, newMessage];
+          
+          // Mark message as seen if it's from current chat
+          if (newMessage.msgByUserId === params.userId) {
+            socketConnection.emit('seen', params.userId);
+          }
+          
+          return updatedMessages;
+        });
+        scrollToBottom();
+      }
+    });
+
+    // Handle message status updates
+    socketConnection.on('message-status-update', ({ messageId, status }) => {
+      setAllMessage(prevMessages => 
+        prevMessages.map(msg => 
+          msg._id === messageId ? { ...msg, status } : msg
+        )
+      );
+    });
+
+    // Handle typing status
+    socketConnection.on('typing', ({ userId }) => {
+      if (userId === params.userId) {
+        setIsTyping(true);
+        // Clear typing indicator after 3 seconds
+        setTimeout(() => setIsTyping(false), 3000);
+      }
+    });
+
+    // Add typing event emission
+    const messageInput = document.getElementById('messageInput');
+    let typingTimeout;
+    
+    const handleTyping = () => {
+      socketConnection.emit('typing', { receiverId: params.userId });
+    };
+
+    const debouncedTyping = () => {
+      clearTimeout(typingTimeout);
+      typingTimeout = setTimeout(handleTyping, 300);
+    };
+
+    if (messageInput) {
+      messageInput.addEventListener('input', debouncedTyping);
+    }
+
+    // Cleanup
+    return () => {
+      socketConnection.off('message');
+      socketConnection.off('message-user');
+      socketConnection.off('message-status-update');
+      socketConnection.off('typing');
+      
+      if (messageInput) {
+        messageInput.removeEventListener('input', debouncedTyping);
+      }
+    };
+  }
+}, [socketConnection, params.userId, user?._id]);
   useEffect(() => {
     if (socketConnection) {
-      socketConnection.on('typing', ({ userId }) => {
-        if (userId === params.userId) {
-          setIsTyping(true);
-          // Clear typing indicator after 3 seconds
-          setTimeout(() => setIsTyping(false), 3000);
-        }
+      socketConnection.on('onlineUsers', (onlineUserIds) => {
+        dispatch(setOnlineUser(onlineUserIds));
       });
   
-      // Debounced typing emission
-      let typingTimeout;
-      const handleTyping = () => {
-        socketConnection.emit('typing', { receiverId: params.userId });
-      };
-  
-      const debouncedTyping = () => {
-        clearTimeout(typingTimeout);
-        typingTimeout = setTimeout(handleTyping, 300);
-      };
-  
-      // Add event listener to input
-      const messageInput = document.getElementById('messageInput');
-      if (messageInput) {
-        messageInput.addEventListener('input', debouncedTyping);
-      }
+      socketConnection.on('lastSeen', (lastSeenData) => {
+        // Convert the lastSeen object to our expected format
+        const lastSeenUpdates = Object.entries(lastSeenData).map(([userId, timestamp]) => ({
+          userId,
+          timestamp
+        }));
+        dispatch(updateLastSeen(lastSeenUpdates));
+      });
   
       return () => {
-        socketConnection.off('typing');
-        if (messageInput) {
-          messageInput.removeEventListener('input', debouncedTyping);
-        }
+        socketConnection.off('onlineUsers');
+        socketConnection.off('lastSeen');
       };
     }
-  }, [socketConnection, params.userId]);
+  }, [socketConnection, dispatch]);
+
+
   const handleOnChange = (e) => {
     const { name, value } = e.target
 
@@ -270,66 +302,36 @@ const MessagePage = () => {
     })
   }
 
-  // const handleSendMessage = (e) => {
-  //   e.preventDefault()
-
-  //   if (message.text || message.imageUrl || message.videoUrl) {
-  //     if (socketConnection) {
-  //       socketConnection.emit('new message', {
-  //         sender: user?._id,
-  //         receiver: params.userId,
-  //         text: message.text,
-  //         imageUrl: message.imageUrl,
-  //         videoUrl: message.videoUrl,
-  //         msgByUserId: user?._id
-  //       })
-  //       setMessage({
-  //         text: "",
-  //         imageUrl: "",
-  //         videoUrl: ""
-  //       })
-  //     }
-  //   }
-  // }
-  useEffect(() => {
-    console.log('Current messages:', allMessage);
-  }, [allMessage]); // Log whenever messages change
-
   const handleSendMessage = (e) => {
-    e.preventDefault();
-  
+    e.preventDefault()
+
     if (message.text || message.imageUrl || message.videoUrl) {
       if (socketConnection) {
-        // Create message object
-        const messageData = {
+        socketConnection.emit('new message', {
           sender: user?._id,
           receiver: params.userId,
           text: message.text,
           imageUrl: message.imageUrl,
           videoUrl: message.videoUrl,
           msgByUserId: user?._id
-        };
-  
-        // Send message through socket
-        socketConnection.emit('new message', messageData);
-  
-        // Clear input fields
+        })
         setMessage({
           text: "",
           imageUrl: "",
           videoUrl: ""
-        });
+        })
       }
     }
-  };
+  }
+  useEffect(() => {
+    console.log('Current messages:', allMessage);
+  }, [allMessage]); // Log whenever messages change
+
+  
   return (
     <div style={{ backgroundImage: `url(${backgroundImage})` }} className='bg-no-repeat bg-cover'>
       <header className='sticky top-0 h-16 bg-white flex justify-between items-center px-4'>
-      {isTyping && (
-  <div className="px-4 py-2 text-sm text-gray-500 italic">
-    {dataUser.name} is typing...
-  </div>
-)}
+  
         <div className='flex items-center gap-4'>
           <Link to={"/"} className='lg:hidden'>
             <FaAngleLeft size={25} />
@@ -517,6 +519,11 @@ const MessagePage = () => {
 
      {/**send message */}
 <section className='h-16 bg-white flex items-center px-4 shadow-lg'>
+{isTyping && (
+    <div className="absolute -top-8 left-4 px-4 py-2 text-sm text-gray-500 italic bg-white/50 rounded">
+      {dataUser.name} is typing...
+    </div>
+  )}
   <div className='relative'>
     <button 
       onClick={handleUploadImageVideoOpen} 

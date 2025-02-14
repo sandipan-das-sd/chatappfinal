@@ -22,37 +22,66 @@ const Sidebar = () => {
     const dispatch = useDispatch()
     const navigate = useNavigate()
 
-    useEffect(()=>{
-        if(socketConnection){
-            socketConnection.emit('sidebar',user._id)
+    // useEffect(()=>{
+    //     if(socketConnection){
+    //         socketConnection.emit('sidebar',user._id)
             
-            socketConnection.on('conversation',(data)=>{
-                console.log('conversation',data)
+    //         socketConnection.on('conversation',(data)=>{
+    //             console.log('conversation',data)
                 
-                const conversationUserData = data.map((conversationUser,index)=>{
-                    if(conversationUser?.sender?._id === conversationUser?.receiver?._id){
-                        return{
-                            ...conversationUser,
-                            userDetails : conversationUser?.sender
-                        }
-                    }
-                    else if(conversationUser?.receiver?._id !== user?._id){
-                        return{
-                            ...conversationUser,
-                            userDetails : conversationUser.receiver
-                        }
-                    }else{
-                        return{
-                            ...conversationUser,
-                            userDetails : conversationUser.sender
-                        }
-                    }
-                })
+    //             const conversationUserData = data.map((conversationUser,index)=>{
+    //                 if(conversationUser?.sender?._id === conversationUser?.receiver?._id){
+    //                     return{
+    //                         ...conversationUser,
+    //                         userDetails : conversationUser?.sender
+    //                     }
+    //                 }
+    //                 else if(conversationUser?.receiver?._id !== user?._id){
+    //                     return{
+    //                         ...conversationUser,
+    //                         userDetails : conversationUser.receiver
+    //                     }
+    //                 }else{
+    //                     return{
+    //                         ...conversationUser,
+    //                         userDetails : conversationUser.sender
+    //                     }
+    //                 }
+    //             })
 
-                setAllUser(conversationUserData)
-            })
+    //             setAllUser(conversationUserData)
+    //         })
+    //     }
+    // },[socketConnection,user])
+    useEffect(() => {
+        if (socketConnection) {
+          socketConnection.emit('sidebar', user._id);
+          
+          socketConnection.on('conversation', (data) => {
+            const conversationUserData = data
+              .map((conversationUser) => {
+                const isCurrentUser = conversationUser?.sender?._id === user?._id;
+                return {
+                  ...conversationUser,
+                  userDetails: isCurrentUser ? conversationUser.receiver : conversationUser.sender,
+                  lastMessageTime: conversationUser.lastMessage?.createdAt || conversationUser.updatedAt
+                };
+              })
+              .sort((a, b) => {
+                // Sort by last message time, newest first
+                const timeA = new Date(a.lastMessageTime).getTime();
+                const timeB = new Date(b.lastMessageTime).getTime();
+                return timeB - timeA;
+              });
+      
+            setAllUser(conversationUserData);
+          });
+      
+          return () => {
+            socketConnection.off('conversation');
+          };
         }
-    },[socketConnection,user])
+      }, [socketConnection, user]);
 
     const handleLogout = ()=>{
         dispatch(logout())
