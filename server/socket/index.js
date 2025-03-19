@@ -13,7 +13,8 @@ const server = http.createServer(app)
 const io = new Server(server, {
     cors: {
         origin: [
-            'https://chatappfinal-delta.vercel.app',
+            'https://chatappfinal-omega.vercel.app',
+            'https://www.chatappfinal-omega.vercel.app',
             'http://localhost:3000'
         ],
         methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],

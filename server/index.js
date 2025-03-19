@@ -64,7 +64,7 @@ const { app, server } = require('./socket/index');
 
 // CORS configuration
 const corsOptions = {
-    origin: ['http://localhost:3000', 'https://chatappfinal-delta.vercel.app'],
+    origin: ['http://localhost:3000', 'https://chatappfinal-omega.vercel.app','https://www.chatappfinal-omega.vercel.app'],
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
     credentials: true,
